@@ -1,3 +1,4 @@
+require('set')
 class Hangman
   attr_accessor :board, :turns, :prosecutor, :defendant
 
@@ -7,22 +8,25 @@ class Hangman
     self.defendant = defendant
   end
 
-  def play
-    puts "Welcome to the game of hangman, where the prisoner may escape punishment but the system stays unchanged, always, just the way it's meant to be. \n \n"
+  def start_game
+    puts "Welcome to the game of hangman, where the prisoner may escape death but the system stays unchanged, always, just the way it's meant to be. \n \n"
     #Get A Secret Word From Prosecutor And Updates Board
     board_size = prosecutor.make_secret
     self.board = Array.new(board_size,"_")
-
-
     #Game Tells Defendent How Many Letters In The Word
     defendant.get_secrete_hint(board_size)
     puts " 'The Code is #{board_size} letters long.' The Prosecutor says with a blank expression on her face. What could it possibly be?? \n \n"
     #Print The Board
     render
 
-    #While Game Is Not Over
-    while self.turns > 0 && self.board.select{|l| l == "_"}.length != 0
+  end
 
+  def play
+
+    start_game
+    #While Game Is Not Over
+
+    while self.turns > 0 && self.board.select{|l| l == "_"}.length != 0
       #Get Letter From Defendent
       guess = defendant.guess_letter
       puts "'And the defendant guesses #{guess.upcase}!!' The jury murmurs amongst themselves.\n\n"
@@ -31,25 +35,33 @@ class Hangman
       pos.each do |p|
         self.board[p] = guess
       end
-      if pos.count == 0
-        render
-        puts "The prisoner walks one step closer to the gallows, who would've thought #{guess} was a good idea?\n\nGood job defendant! \n\n"
-      else
-        render
-        puts "Looks like the defendant was able to scrap by with some questionable evidence. \nPrisoner, feel free to take another breathe, enjoy it.\n\n"
-      end
+      handle_pos(pos, guess)
       # One Step Closer To Death
       self.turns -= 1
-
     end
+
+    handle_win
+  end
+
+  def handle_pos(pos, guess)
+    if pos.empty?
+      render
+      puts "The prisoner walks one step closer to the gallows, who would've thought #{guess} was a good idea?\n\nGood job defendant! \n\n"
+    else
+      render
+      puts "Looks like the defendant was able to scrap by with some questionable evidence. \nPrisoner, feel free to take another breathe, enjoy it.\n\n"
+    end
+  end
+
+  def handle_win
     # Defendent Is Dead If Turns Run Out
     if self.turns == 0
-      puts "'Thump!' The prisoner's boots have finally reached the steps leading toward the gallows.His face is as white as the knuckles of his interrogator last night (before all the blood of course).\nAnd another quick victory for the prosecutor, a glorious example of how the legal system should work.\n\nLook, the beautiful murder of ravens are already circling above!\n\n"
-    end
+      puts "'Thump!' The prisoner's boots have finally reached the steps leading toward the gallow. His face is as white as the knuckles of his interrogator last night (before all the blood stains).\nAnd another quick victory for the prosecutor, a glorious example of how the legal system should work.\n\nLook, the beautiful murders of crows are already circling above!\n\n"
+    else
     # Defendent Wins
-    if self.board.select{|l| l == "_"}.length == 0
       puts "The defendant snatched another victim from jaws of the law. \nNext time, he wouldn't be so lucky.\n\n"
     end
+
   end
 
   def render
@@ -57,34 +69,12 @@ class Hangman
   end
 end
 
-class Player
-
-  def make_secret
-    #make a secret word if prosecuting
-  end
-
-  def get_secret_hint
-    #gets length of secret if defending
-  end
-
-  def guess_letter
-    #guesses the next letter if defending
-  end
-
-  def judge_guess
-    #gets defendents letter and let them know if they've guessed correctly
-  end
-
-  def process_judgement
-    #process result of prosecutor's judgment (computer only)
-  end
-end
-
 class ComputerPlayer
-  attr_accessor :dictionary, :secret_code, :guessing
+  attr_accessor :dictionary, :secret_code, :guessing, :current_letter
 
   def initialize(file_name)
-    self.dictionary = File.readlines(file_name).map(&:chomp)
+    self.dictionary = Set.new(File.readlines(file_name).map(&:chomp))
+    self.current_letter = nil
   end
 
   def get_secrete_hint(length)
@@ -92,12 +82,12 @@ class ComputerPlayer
   end
 
   def make_secret
-    self.secret_code = self.dictionary.sample
+    self.secret_code = self.dictionary.to_a.sample
     self.secret_code.length
   end
 
   def guess_letter
-    ("a".."z").to_a.sample
+    current_letter = ("a".."z").to_a.sample
   end
 
   def judge_guess(letter)
@@ -106,11 +96,33 @@ class ComputerPlayer
     pos
   end
 
+  def process_judgement(pos)
+    return unless self.current_letter
+
+    pos.each do |p|
+      self.guessing[p] = self.current_letter
+    end
+
+  end
+
+  def search_letter
+    pos_letters = Hash.new{|h,k| h[k] = 0 }
+
+    self.dictionary.each do |word|
+      next if word.length != self.guessing.length
+
+      word.split('').uniq do |letter|
+        pos_letters[letter] += 1 unless guessing.include?(letter)
+      end
+    end
+
+    pos_letters.key(pos_letters.values.sort.last)
+  end
+
 end
 
 class HumanPlayer
   attr_accessor :letters_remain
-
 
   def initialize
     self.letters_remain = ("a".."z").to_a
@@ -124,16 +136,15 @@ class HumanPlayer
   end
 
   def get_secrete_hint(num)
-
   end
 
   def judge_guess(letter)
-    puts "Did they get it right? Please let us know the positions where #{letter}, exists in the code, or make something up, it really doesn't matter.\n\n"
+    puts "Did they get it right? Please let us know the positions where #{letter} exists in the code, or make something up, it really doesn't matter.\n\n"
     pos = gets.chomp.split(' ').map{|l| l.to_i }
   end
 
   def guess_letter
-    puts "You open your left hand and see the letters #{letters_remain.join(' ')}, which one will you pick next? \n\n"
+    puts "You opened up your briefcase and see the letters #{letters_remain.join(' ')}, which one will you pick next?\n\n"
     letter = gets.chomp
     unless self.letters_remain.include?(letter)
       "You've already used #{letter.upcase}, looks like you aren't very good at this thing. \n\nWorry not, we know not of second chances in these parts of the world\n\n"
