@@ -29,13 +29,14 @@ class Hangman
     while self.turns > 0 && self.board.select{|l| l == "_"}.length != 0
       #Get Letter From Defendent
       guess = defendant.guess_letter
-      puts "'And the defendant guesses #{guess.upcase}!!' The jury murmurs amongst themselves.\n\n"
+      puts "'And the defendant guessed #{guess.upcase}!!' The jury murmurs amongst themselves.\n\n"
       # Prosecutor Tells Defendent If It's Correct
       pos = prosecutor.judge_guess(guess)
       pos.each do |p|
         self.board[p] = guess
       end
       handle_pos(pos, guess)
+      defendant.process_judgement(pos)
       # One Step Closer To Death
       self.turns -= 1
     end
@@ -79,6 +80,8 @@ class ComputerPlayer
 
   def get_secrete_hint(length)
     self.guessing = Array.new(length,'_')
+    #narrow dictionary down
+    self.dictionary.select!{|word| word if word.length == length }
   end
 
   def make_secret
@@ -87,7 +90,7 @@ class ComputerPlayer
   end
 
   def guess_letter
-    current_letter = ("a".."z").to_a.sample
+    self.current_letter = search_letter
   end
 
   def judge_guess(letter)
@@ -97,25 +100,26 @@ class ComputerPlayer
   end
 
   def process_judgement(pos)
-    return unless self.current_letter
 
     pos.each do |p|
-      self.guessing[p] = self.current_letter
+      self.guessing[p] = current_letter
     end
-
+    #Update Dictionary with words where all positions match or remove unmatched
+    if pos.empty?
+      self.dictionary.select!{|word| !word.include?(current_letter)}
+    else
+      self.dictionary.select! {|word| pos.all?{|i| word[i] == current_letter}}
+    end
   end
 
   def search_letter
     pos_letters = Hash.new{|h,k| h[k] = 0 }
-
     self.dictionary.each do |word|
-      next if word.length != self.guessing.length
-
       word.split('').uniq do |letter|
         pos_letters[letter] += 1 unless guessing.include?(letter)
       end
-    end
 
+    end
     pos_letters.key(pos_letters.values.sort.last)
   end
 
@@ -136,6 +140,9 @@ class HumanPlayer
   end
 
   def get_secrete_hint(num)
+  end
+
+  def process_judgement(pos)
   end
 
   def judge_guess(letter)
