@@ -133,10 +133,21 @@ class HumanPlayer
   end
 
   def make_secret
-    puts "Please think of a code prosecutor, and let us know how long it is.\n\nIt does not have to be a real word really, no need to go easy on these crimminal scums, anything that's a number will do!\n\n"
+    begin
+      puts "Please think of a code prosecutor, and let us know how long it is.\n\nIt does not have to be a real word really, no need to go easy on these crimminal scums, anything that's a number will do!\n\n"
+      word_length = self.enter_secret
+    rescue
+      puts "Please pick a number prosecutor, we need to at least pretend like they have a chance\n\n"
+      retry
+    end
+
+    word_length
+  end
+
+  def enter_secret
     word_length = gets.chomp
-    raise "Please pick a number prosecutor, we need to at least pretend like they have a chance\n\n" unless Integer(word_length)
-    Integer(word_length)
+    raise ArgumentError unless Integer(word_length)
+    word_length.to_i
   end
 
   def get_secrete_hint(num)
